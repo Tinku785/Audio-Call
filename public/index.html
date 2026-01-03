@@ -5,35 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My VoIP System</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #f0f2f5; }
-        .box { 
-            background: white; padding: 30px; margin: 20px auto; 
-            max-width: 400px; border-radius: 10px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding-top: 50px; }
+        
+        .container { 
+            background: white; 
+            padding: 40px; 
+            margin: auto; 
+            max-width: 450px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
         }
-        button { 
-            padding: 10px 20px; font-size: 16px; cursor: pointer; 
-            background: #28a745; color: white; border: none; border-radius: 5px; 
-            margin-top: 10px;
+
+        h1 { color: #333; margin-bottom: 30px; }
+        
+        input { 
+            padding: 12px; font-size: 16px; width: 70%; 
+            border: 2px solid #ddd; border-radius: 8px; margin-bottom: 15px;
+            text-align: center; letter-spacing: 1px;
         }
-        button:hover { background: #218838; }
-        input { padding: 10px; font-size: 16px; width: 70%; margin-bottom: 10px; }
-        #status { color: #666; font-weight: bold; margin-top: 20px; }
+
+        .btn { 
+            padding: 12px 25px; font-size: 16px; cursor: pointer; 
+            border: none; border-radius: 8px; color: white; 
+            font-weight: bold; transition: 0.3s; margin: 5px; width: 100%;
+        }
+
+        .btn-join { background: #28a745; }
+        .btn-join:hover { background: #218838; }
+
+        .btn-create { background: #007bff; }
+        .btn-create:hover { background: #0056b3; }
+
+        .secondary-controls {
+            display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;
+        }
+
+        .small-btn {
+            background: #6c757d; font-size: 12px; padding: 5px 10px; width: auto;
+        }
+
+        #status { 
+            margin-top: 20px; color: #666; font-weight: 500; 
+            padding: 10px; background: #e9ecef; border-radius: 5px;
+        }
+
+        .live { color: #28a745 !important; border: 1px solid #28a745; background: #e8f5e9 !important;}
+        .error { color: #dc3545 !important; background: #f8d7da !important;}
+        .warning { color: #856404 !important; background: #fff3cd !important; border: 1px solid #ffeeba; }
+
     </style>
 </head>
 <body>
 
-    <h1>🎙️ Real-Time Audio System</h1>
-    
-    <div class="box">
-        <h3>Step 1: Enter Room Name</h3>
-        <input type="text" id="roomId" placeholder="e.g. room1" value="room1">
-        <br>
-        <button onclick="joinRoom()">Join Call</button>
-        <p id="status">Status: Ready to connect.</p>
-    </div>
+    <div class="container">
+        <h1>🎙️ Secure Audio Call</h1>
+        
+        <p>Enter a Room ID or Create a New One:</p>
+        <input type="text" id="roomId" placeholder="Enter Room ID here...">
+        
+        <div class="secondary-controls">
+            <button class="btn btn-create small-btn" onclick="generateRoom()">✨ Generate New ID</button>
+            <button class="btn small-btn" onclick="copyRoomId()">📋 Copy ID</button>
+        </div>
 
-    <audio id="remoteAudio" autoplay></audio>
+        <button class="btn btn-join" onclick="joinRoom()">📞 Join Call Now</button>
+        
+        <div id="status">Status: Idle</div>
+        
+        <br>
+        <audio id="remoteAudio" autoplay controls style="width: 100%; margin-top: 15px;"></audio>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     
@@ -42,74 +83,113 @@
         let localStream;
         let peerConnection;
         
-        // STUN Servers: These help us find our public IP address
         const servers = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' } 
             ]
         };
 
-        // --- STEP 1: GET MIC & JOIN ---
+        function generateRoom() {
+            const randomId = Math.random().toString(36).substring(2, 9) + "-" + Math.random().toString(36).substring(2, 5);
+            document.getElementById('roomId').value = randomId;
+            document.getElementById('status').innerText = "Status: New Room ID Generated! Share it.";
+        }
+
+        function copyRoomId() {
+            const roomInput = document.getElementById('roomId');
+            roomInput.select();
+            document.execCommand("copy");
+            alert("Room ID copied! Send this to your friend.");
+        }
+
         async function joinRoom() {
             const roomName = document.getElementById('roomId').value;
-            document.getElementById('status').innerText = "Status: Asking for Mic Access...";
+            if (!roomName) {
+                alert("Please enter or generate a Room ID first!");
+                return;
+            }
+
+            const statusEl = document.getElementById('status');
+            statusEl.innerText = "Status: 🎤 Requesting Microphone...";
 
             try {
-                // Get access to the Microphone
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                document.getElementById('status').innerText = "Status: Mic Active. Joining Room...";
-                
-                // Tell the server we are here
+                statusEl.innerText = "Status: ⏳ Joining Server...";
                 socket.emit('join-room', roomName, socket.id);
-                
-                // Start listening for other people
                 setupSocketListeners();
-                
             } catch (error) {
                 console.error(error);
-                alert("Please allow microphone access!");
+                statusEl.innerText = "Status: ❌ Mic Permission Denied";
+                statusEl.classList.add("error");
             }
         }
 
-        // --- STEP 2: HANDLE SERVER MESSAGES ---
         function setupSocketListeners() {
-            // A. If a new user joins, WE call THEM
             socket.on('user-connected', (userId) => {
-                document.getElementById('status').innerText = "Status: User found! Calling...";
-                createPeerConnection(true); // true = We are the "Caller"
+                document.getElementById('status').innerText = "Status: 👤 User found! Connecting P2P...";
+                createPeerConnection(true); 
             });
 
-            // B. If we receive a signal (Handshake data)
             socket.on('signal', async (data) => {
                 if (!peerConnection) {
-                    await createPeerConnection(false); // false = We are the "Receiver"
+                    await createPeerConnection(false); 
                 }
                 handleSignal(data.signal);
             });
         }
 
-        // --- STEP 3: THE WEBRTC LOGIC (The Hard Part) ---
         async function createPeerConnection(isInitiator) {
             peerConnection = new RTCPeerConnection(servers);
 
-            // 1. Add our Microphone audio to the connection
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-            // 2. Listen for THEIR audio
+            // --- THE FIX: ROBUST AUDIO PLAYBACK LOGIC ---
             peerConnection.ontrack = (event) => {
+                console.log("Stream received!");
                 const remoteAudio = document.getElementById('remoteAudio');
                 remoteAudio.srcObject = event.streams[0];
-                document.getElementById('status').innerText = "Status: 🟢 CONNECTED! Talking...";
+                
+                const statusEl = document.getElementById('status');
+                
+                // Attempt to play automatically
+                var playPromise = remoteAudio.play();
+
+                if (playPromise !== undefined) {
+                    playPromise.then(_ => {
+                        // Success: Audio is playing
+                        statusEl.innerText = "Status: 🟢 ONLINE - Audio Connected!";
+                        statusEl.className = ""; // Reset classes
+                        statusEl.classList.add("live");
+                    })
+                    .catch(error => {
+                        // Fail: Browser blocked it
+                        console.warn("Auto-play prevented. User interaction needed.");
+                        statusEl.innerText = "Status: ⚠️ Audio Blocked! Click the Red Button below.";
+                        statusEl.className = "";
+                        statusEl.classList.add("warning");
+                        
+                        // Create the "Click to Fix" button
+                        let btn = document.createElement("button");
+                        btn.innerText = "🔊 CLICK TO HEAR AUDIO";
+                        btn.style.backgroundColor = "#dc3545";
+                        btn.className = "btn";
+                        btn.onclick = () => {
+                            remoteAudio.play();
+                            btn.remove(); // Remove button after clicking
+                            statusEl.innerText = "Status: 🟢 ONLINE - Audio Connected!";
+                            statusEl.className = "live";
+                        };
+                        document.querySelector(".container").appendChild(btn);
+                    });
+                }
             };
 
-            // 3. Handle Network Candidates (Finding a path through the internet)
             peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
                     sendSignal({ type: 'candidate', candidate: event.candidate });
                 }
             };
 
-            // 4. If we are the Caller, create the "Offer"
             if (isInitiator) {
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
@@ -117,7 +197,6 @@
             }
         }
 
-        // --- STEP 4: HANDLE THE HANDSHAKE ---
         async function handleSignal(signal) {
             if (signal.type === 'offer') {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
@@ -131,7 +210,6 @@
             }
         }
 
-        // Helper function to send data via the server
         function sendSignal(signal) {
             socket.emit('signal', {
                 roomId: document.getElementById('roomId').value,
