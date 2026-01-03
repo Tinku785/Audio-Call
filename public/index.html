@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My VoIP System</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #f0f2f5; }
+        .box { 
+            background: white; padding: 30px; margin: 20px auto; 
+            max-width: 400px; border-radius: 10px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+        }
+        button { 
+            padding: 10px 20px; font-size: 16px; cursor: pointer; 
+            background: #28a745; color: white; border: none; border-radius: 5px; 
+            margin-top: 10px;
+        }
+        button:hover { background: #218838; }
+        input { padding: 10px; font-size: 16px; width: 70%; margin-bottom: 10px; }
+        #status { color: #666; font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>🎙️ Real-Time Audio System</h1>
+    
+    <div class="box">
+        <h3>Step 1: Enter Room Name</h3>
+        <input type="text" id="roomId" placeholder="e.g. room1" value="room1">
+        <br>
+        <button onclick="joinRoom()">Join Call</button>
+        <p id="status">Status: Ready to connect.</p>
+    </div>
+
+    <audio id="remoteAudio" autoplay></audio>
+
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <script>
+        const socket = io(); 
+        let localStream;
+        let peerConnection;
+        
+        // STUN Servers: These help us find our public IP address
+        const servers = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' } 
+            ]
+        };
+
+        // --- STEP 1: GET MIC & JOIN ---
+        async function joinRoom() {
+            const roomName = document.getElementById('roomId').value;
+            document.getElementById('status').innerText = "Status: Asking for Mic Access...";
+
+            try {
+                // Get access to the Microphone
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                document.getElementById('status').innerText = "Status: Mic Active. Joining Room...";
+                
+                // Tell the server we are here
+                socket.emit('join-room', roomName, socket.id);
+                
+                // Start listening for other people
+                setupSocketListeners();
+                
+            } catch (error) {
+                console.error(error);
+                alert("Please allow microphone access!");
+            }
+        }
+
+        // --- STEP 2: HANDLE SERVER MESSAGES ---
+        function setupSocketListeners() {
+            // A. If a new user joins, WE call THEM
+            socket.on('user-connected', (userId) => {
+                document.getElementById('status').innerText = "Status: User found! Calling...";
+                createPeerConnection(true); // true = We are the "Caller"
+            });
+
+            // B. If we receive a signal (Handshake data)
+            socket.on('signal', async (data) => {
+                if (!peerConnection) {
+                    await createPeerConnection(false); // false = We are the "Receiver"
+                }
+                handleSignal(data.signal);
+            });
+        }
+
+        // --- STEP 3: THE WEBRTC LOGIC (The Hard Part) ---
+        async function createPeerConnection(isInitiator) {
+            peerConnection = new RTCPeerConnection(servers);
+
+            // 1. Add our Microphone audio to the connection
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            // 2. Listen for THEIR audio
+            peerConnection.ontrack = (event) => {
+                const remoteAudio = document.getElementById('remoteAudio');
+                remoteAudio.srcObject = event.streams[0];
+                document.getElementById('status').innerText = "Status: 🟢 CONNECTED! Talking...";
+            };
+
+            // 3. Handle Network Candidates (Finding a path through the internet)
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendSignal({ type: 'candidate', candidate: event.candidate });
+                }
+            };
+
+            // 4. If we are the Caller, create the "Offer"
+            if (isInitiator) {
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                sendSignal(offer);
+            }
+        }
+
+        // --- STEP 4: HANDLE THE HANDSHAKE ---
+        async function handleSignal(signal) {
+            if (signal.type === 'offer') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                sendSignal(answer);
+            } else if (signal.type === 'answer') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+            } else if (signal.candidate) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            }
+        }
+
+        // Helper function to send data via the server
+        function sendSignal(signal) {
+            socket.emit('signal', {
+                roomId: document.getElementById('roomId').value,
+                signal: signal,
+                senderId: socket.id
+            });
+        }
+    </script>
+</body>
+</html>
