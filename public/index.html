@@ -19,7 +19,6 @@
             border-radius: 8px; margin-bottom: 10px; text-align: center; font-size: 16px;
         }
 
-        /* NEW: NAME INPUT STYLE */
         #nameInput { border-color: #007bff; background: #eef7ff; font-weight: bold; }
 
         .btn { 
@@ -27,10 +26,17 @@
             border-radius: 8px; color: white; font-weight: bold; width: 100%; margin: 5px 0; transition: 0.2s;
         }
         .btn:hover { opacity: 0.9; }
+        
+        /* COLORS */
         .btn-join { background: #28a745; }
         .btn-whatsapp { background: #25D366; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-hangup { background: #dc3545; display: none; } 
-        .btn-hangup:hover { background: #c82333; }
+        .btn-hangup { background: #dc3545; display: none; } /* Hidden initially */
+        
+        /* CONTROL PANEL (New!) */
+        .control-panel { display: none; gap: 10px; margin-top: 10px; }
+        .btn-control { flex: 1; font-size: 14px; padding: 10px; }
+        .btn-mute-mic { background: #ffc107; color: #333; } /* Yellow */
+        .btn-mute-sound { background: #17a2b8; } /* Cyan */
 
         .secondary-controls { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
         .small-btn { background: #6c757d; font-size: 12px; padding: 8px; width: auto; flex: 1; }
@@ -43,10 +49,10 @@
             padding: 10px; background: #f9f9f9; border-radius: 5px; margin-bottom: 10px;
         }
         .msg { margin: 5px 0; padding: 6px 10px; border-radius: 5px; font-size: 14px; display: inline-block; clear: both;}
-        
-        /* CHAT BUBBLE STYLES */
         .msg-me { background: #dcf8c6; float: right; border-bottom-right-radius: 0; }
         .msg-remote { background: #fff; border: 1px solid #ddd; float: left; border-bottom-left-radius: 0; }
+        .msg-history { background: #eee; border: 1px solid #ccc; color: #666; float: left; width: 95%; }
+        
         .sender-name { font-size: 10px; font-weight: bold; color: #555; display: block; margin-bottom: 2px; }
         
         .chat-input-row { display: flex; gap: 5px; }
@@ -56,6 +62,7 @@
         #status { margin-top: 15px; color: #666; font-size: 14px; font-weight: 500; }
         .live { color: #28a745 !important; }
         .error { color: #dc3545 !important; }
+        .muted { opacity: 0.6; text-decoration: line-through; }
     </style>
 </head>
 <body>
@@ -64,7 +71,6 @@
         <h1>🎙️ Pro Audio Station</h1>
         
         <input type="text" id="nameInput" placeholder="Enter Your Name (Required)">
-        
         <input type="text" id="roomId" placeholder="Enter Room ID...">
         
         <div class="secondary-controls">
@@ -78,6 +84,12 @@
         </button>
 
         <button class="btn btn-join" onclick="joinRoom()" id="joinBtn">📞 Join Call</button>
+        
+        <div class="control-panel" id="controlPanel">
+            <button class="btn btn-control btn-mute-mic" id="btnMic" onclick="toggleMic()">🎙️ Mute Mic</button>
+            <button class="btn btn-control btn-mute-sound" id="btnSpeaker" onclick="toggleSpeaker()">🔊 Mute Sound</button>
+        </div>
+
         <button class="btn btn-hangup" onclick="hangUp()" id="hangupBtn">❌ End Call</button>
         
         <div id="status">Status: Idle</div>
@@ -101,6 +113,10 @@
         let localStream;
         let peerConnection;
         const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        // --- GLOBAL VARIABLES FOR MUTING ---
+        let isMicMuted = false;
+        let isSpeakerMuted = false;
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -131,17 +147,53 @@
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
+        // --- NEW: MUTE LOGIC ---
+        function toggleMic() {
+            if (!localStream) return;
+            const audioTrack = localStream.getAudioTracks()[0];
+            const btn = document.getElementById('btnMic');
+
+            if (isMicMuted) {
+                audioTrack.enabled = true; // Turn On
+                isMicMuted = false;
+                btn.innerText = "🎙️ Mute Mic";
+                btn.style.opacity = "1";
+            } else {
+                audioTrack.enabled = false; // Turn Off
+                isMicMuted = true;
+                btn.innerText = "🚫 Unmuted";
+                btn.style.opacity = "0.5";
+            }
+        }
+
+        function toggleSpeaker() {
+            const remoteAudio = document.getElementById('remoteAudio');
+            const btn = document.getElementById('btnSpeaker');
+
+            if (isSpeakerMuted) {
+                remoteAudio.muted = false; // Turn On
+                isSpeakerMuted = false;
+                btn.innerText = "🔊 Mute Sound";
+                btn.style.opacity = "1";
+            } else {
+                remoteAudio.muted = true; // Turn Off
+                isSpeakerMuted = true;
+                btn.innerText = "🔇 Unmute Sound";
+                btn.style.opacity = "0.5";
+            }
+        }
+
         async function joinRoom() {
             const roomName = document.getElementById('roomId').value;
             const userName = document.getElementById('nameInput').value;
 
-            // VALIDATION: Name is mandatory now!
             if (!userName) return alert("Please enter your Name first!");
             if (!roomName) return alert("Enter Room ID!");
             
             document.getElementById('joinBtn').style.display = 'none';
             document.getElementById('hangupBtn').style.display = 'block';
-            document.getElementById('nameInput').disabled = true; // Lock the name
+            document.getElementById('controlPanel').style.display = 'flex'; // SHOW CONTROLS
+            document.getElementById('nameInput').disabled = true;
             
             document.getElementById('status').innerText = "Status: Requesting Mic...";
 
@@ -171,19 +223,15 @@
             window.location.href = window.location.href.split('?')[0]; 
         }
 
-        // --- UPDATED CHAT LOGIC ---
         function sendMessage() {
             const input = document.getElementById('msgInput');
             const msg = input.value;
             const room = document.getElementById('roomId').value;
-            const name = document.getElementById('nameInput').value; // Get the Name
+            const name = document.getElementById('nameInput').value;
             
             if(!msg) return;
 
-            // Show "You" on my screen
             addMessageToUI("You", msg, "msg-me");
-            
-            // Send Name + Message to Server
             socket.emit('send-message', { roomId: room, message: msg, senderName: name });
             input.value = "";
         }
@@ -191,21 +239,17 @@
         function addMessageToUI(sender, text, className) {
             const box = document.getElementById('messages');
             const div = document.createElement('div');
-            
-            // HTML for Name + Message
             div.innerHTML = `
                 <div class="msg ${className}">
                     <span class="sender-name">${sender}</span>
                     ${text}
                 </div>`;
-            
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
         }
 
         function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
 
-        // --- VISUALIZER ---
         function startVisualizer(stream) {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const analyser = audioCtx.createAnalyser();
@@ -237,7 +281,6 @@
             draw();
         }
 
-        // --- SOCKET & WEBRTC ---
         function setupSocketListeners() {
             socket.on('user-connected', () => {
                 document.getElementById('status').innerText = "Status: User Found! Linking...";
@@ -249,9 +292,14 @@
                 handleSignal(data.signal);
             });
 
-            // UPDATED: Receive Message + Name
             socket.on('receive-message', (data) => {
                 addMessageToUI(data.sender, data.message, "msg-remote");
+            });
+
+            socket.on('load-messages', (history) => {
+                history.forEach((data) => {
+                    addMessageToUI(data.sender + " (History)", data.message, "msg-remote msg-history");
+                });
             });
         }
 
