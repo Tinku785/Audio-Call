@@ -3,46 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calling System of Tinku</title>
+    <title>Pro VoIP System</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 20px; }
         
         .container { 
             background: white; padding: 30px; margin: auto; max-width: 450px; 
             border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
         }
 
-        h1 { margin-bottom: 20px; font-size: 22px; color: #333; }
-        input { padding: 10px; width: 70%; border: 2px solid #ddd; border-radius: 5px; text-align: center; }
+        h1 { margin-bottom: 20px; font-size: 24px; color: #333; }
         
+        input { 
+            padding: 12px; width: 70%; border: 2px solid #ddd; 
+            border-radius: 8px; margin-bottom: 10px; text-align: center; font-size: 16px;
+        }
+
         /* BUTTONS */
-        .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; width: 100%; margin: 5px 0; }
+        .btn { 
+            padding: 12px; font-size: 16px; cursor: pointer; border: none; 
+            border-radius: 8px; color: white; font-weight: bold; width: 100%; margin: 5px 0; transition: 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
         .btn-join { background: #28a745; }
         .btn-whatsapp { background: #25D366; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .secondary-controls { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
         .small-btn { background: #6c757d; font-size: 12px; padding: 8px; width: auto; flex: 1; }
 
-        /* VISUALIZER CANVAS */
+        /* VISUALIZER (Hacker Mode) */
         canvas { 
             width: 100%; height: 60px; background: #222; 
-            border-radius: 5px; margin-top: 15px; display: none; /* Hidden until join */
+            border-radius: 5px; margin-top: 15px; display: none; 
         }
 
-        /* CHAT BOX STYLES */
-        #chat-section { display: none; margin-top: 20px; text-align: left; }
+        /* CHAT SECTION */
+        #chat-section { display: none; margin-top: 20px; text-align: left; border-top: 1px solid #eee; padding-top: 20px; }
         #messages { 
             height: 150px; overflow-y: auto; border: 1px solid #ddd; 
             padding: 10px; background: #f9f9f9; border-radius: 5px; margin-bottom: 10px;
         }
-        .msg { margin: 5px 0; padding: 5px 8px; border-radius: 5px; font-size: 14px; }
-        .msg-me { background: #dcf8c6; text-align: right; margin-left: 20px; } /* WhatsApp Green */
-        .msg-remote { background: #fff; border: 1px solid #ddd; margin-right: 20px; }
-
+        .msg { margin: 5px 0; padding: 6px 10px; border-radius: 5px; font-size: 14px; display: inline-block; clear: both;}
+        .msg-me { background: #dcf8c6; float: right; } /* WhatsApp Green */
+        .msg-remote { background: #fff; border: 1px solid #ddd; float: left; }
+        
         .chat-input-row { display: flex; gap: 5px; }
-        #msgInput { width: 100%; text-align: left; }
-        .btn-send { background: #007bff; width: auto; }
+        #msgInput { width: 100%; margin: 0; text-align: left; }
+        .btn-send { background: #007bff; width: auto; padding: 0 20px; }
 
-        #status { margin-top: 15px; color: #666; font-size: 13px; font-weight: bold; }
+        #status { margin-top: 15px; color: #666; font-size: 14px; font-weight: 500; }
         .live { color: #28a745 !important; }
         .error { color: #dc3545 !important; }
 
@@ -54,13 +62,15 @@
         <h1>🎙️ Pro Audio Station</h1>
         
         <input type="text" id="roomId" placeholder="Enter Room ID...">
+        
         <div class="secondary-controls">
-            <button class="btn btn-create small-btn" onclick="generateRoom()">✨ Generate ID</button>
+            <button class="btn small-btn" style="background: #007bff;" onclick="generateRoom()">✨ Generate ID</button>
             <button class="btn small-btn" onclick="copyRoomId()">📋 Copy ID</button>
         </div>
 
         <button class="btn btn-whatsapp" onclick="shareToWhatsApp()">
-            💬 Share on WhatsApp
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+            Share Magic Link
         </button>
 
         <button class="btn btn-join" onclick="joinRoom()" id="joinBtn">📞 Join Call</button>
@@ -72,7 +82,7 @@
         <div id="chat-section">
             <div id="messages"></div>
             <div class="chat-input-row">
-                <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="handleEnter(event)">
+                <input type="text" id="msgInput" placeholder="Type message..." onkeypress="handleEnter(event)">
                 <button class="btn btn-send" onclick="sendMessage()">Send</button>
             </div>
         </div>
@@ -85,30 +95,42 @@
         const socket = io(); 
         let localStream;
         let peerConnection;
-        
-        // --- 1. SETUP & UTILS ---
         const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
+        // --- 1. INITIALIZATION & MAGIC LINK LOGIC ---
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const r = urlParams.get('room');
-            if(r) document.getElementById('roomId').value = r;
+            if(r) {
+                document.getElementById('roomId').value = r;
+                document.getElementById('status').innerText = "Status: Room Auto-Filled! Click Join.";
+            }
         };
 
         function generateRoom() {
             document.getElementById('roomId').value = Math.random().toString(36).substring(2, 9);
+            document.getElementById('status').innerText = "Status: New ID Generated.";
         }
 
         function copyRoomId() {
             const el = document.getElementById('roomId'); el.select(); document.execCommand("copy");
-            alert("Copied!");
+            alert("Room ID Copied!");
         }
 
         function shareToWhatsApp() {
             const id = document.getElementById('roomId').value;
             if(!id) return alert("Generate ID first!");
-            const link = `${window.location.origin}${window.location.pathname}?room=${id}`;
-            window.open(`https://wa.me/?text=${encodeURIComponent("Join my call: " + link)}`, '_blank');
+            
+            // Get current clean URL (e.g. https://your-app.onrender.com)
+            const baseUrl = window.location.href.split('?')[0];
+            const magicLink = `${baseUrl}?room=${id}`;
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(magicLink);
+            
+            // Open WhatsApp
+            const msg = `📞 Join my secure voice call! Click here to join automatically:\n\n${magicLink}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
         // --- 2. JOINING LOGIC ---
@@ -117,20 +139,19 @@
             if (!roomName) return alert("Enter Room ID!");
             
             document.getElementById('joinBtn').disabled = true;
-            document.getElementById('status').innerText = "Status: Asking for Mic...";
+            document.getElementById('status').innerText = "Status: Requesting Mic...";
 
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                 
-                // Show hidden features
+                // Reveal UI
                 document.getElementById('visualizer').style.display = 'block';
                 document.getElementById('chat-section').style.display = 'block';
                 document.getElementById('remoteAudio').style.display = 'block';
+                
+                startVisualizer(localStream); // Start Hacker Animation
 
-                // Start Visualizer
-                startVisualizer(localStream);
-
-                document.getElementById('status').innerText = "Status: Connecting...";
+                document.getElementById('status').innerText = "Status: Connecting to Server...";
                 socket.emit('join-room', roomName, socket.id);
                 setupSocketListeners();
             } catch (error) {
@@ -147,10 +168,7 @@
             const room = document.getElementById('roomId').value;
             if(!msg) return;
 
-            // Show my own message
             addMessageToUI("You", msg, "msg-me");
-            
-            // Send to server
             socket.emit('send-message', { roomId: room, message: msg });
             input.value = "";
         }
@@ -158,15 +176,14 @@
         function addMessageToUI(sender, text, className) {
             const box = document.getElementById('messages');
             const div = document.createElement('div');
-            div.className = `msg ${className}`;
-            div.innerHTML = `<b>${sender}:</b> ${text}`;
+            div.innerHTML = `<div class="msg ${className}"><b>${sender}:</b> ${text}</div>`;
             box.appendChild(div);
-            box.scrollTop = box.scrollHeight; // Auto-scroll to bottom
+            box.scrollTop = box.scrollHeight;
         }
 
         function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
 
-        // --- 4. VISUALIZER LOGIC (Hacker Style) ---
+        // --- 4. VISUALIZER LOGIC ---
         function startVisualizer(stream) {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const analyser = audioCtx.createAnalyser();
@@ -182,7 +199,7 @@
             function draw() {
                 requestAnimationFrame(draw);
                 analyser.getByteFrequencyData(dataArray);
-                ctx.fillStyle = "#222"; // Background
+                ctx.fillStyle = "#222"; 
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
                 const barWidth = (canvas.width / bufferLength) * 2.5;
@@ -191,8 +208,7 @@
 
                 for(let i = 0; i < bufferLength; i++) {
                     barHeight = dataArray[i] / 2;
-                    // Green bars (Hacker color)
-                    ctx.fillStyle = `rgb(50, ${barHeight + 100}, 50)`;
+                    ctx.fillStyle = `rgb(50, ${barHeight + 100}, 50)`; // Matrix Green
                     ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
                     x += barWidth + 1;
                 }
@@ -200,9 +216,8 @@
             draw();
         }
 
-        // --- 5. WEBRTC & SOCKET LISTENERS ---
+        // --- 5. WEBRTC LOGIC ---
         function setupSocketListeners() {
-            // Audio Signaling
             socket.on('user-connected', () => {
                 document.getElementById('status').innerText = "Status: User Found! Linking...";
                 createPeerConnection(true);
@@ -213,7 +228,6 @@
                 handleSignal(data.signal);
             });
 
-            // Chat Listener
             socket.on('receive-message', (msg) => {
                 addMessageToUI("Friend", msg, "msg-remote");
             });
@@ -226,14 +240,29 @@
             peerConnection.ontrack = (event) => {
                 const remoteAudio = document.getElementById('remoteAudio');
                 remoteAudio.srcObject = event.streams[0];
-                remoteAudio.play()
-                    .then(() => {
+                
+                // RED BUTTON FIX
+                var playPromise = remoteAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(_ => {
                         document.getElementById('status').innerText = "Status: 🟢 Connected!";
                         document.getElementById('status').classList.add("live");
                     })
                     .catch(() => {
                         document.getElementById('status').innerText = "Status: ⚠️ Click Play below!";
+                        let btn = document.createElement("button");
+                        btn.innerText = "🔊 CLICK TO HEAR AUDIO";
+                        btn.style.backgroundColor = "#dc3545";
+                        btn.className = "btn";
+                        btn.onclick = () => {
+                            remoteAudio.play();
+                            btn.remove();
+                            document.getElementById('status').innerText = "Status: 🟢 Connected!";
+                            document.getElementById('status').className = "live";
+                        };
+                        document.querySelector(".container").appendChild(btn);
                     });
+                }
             };
 
             peerConnection.onicecandidate = (event) => {
