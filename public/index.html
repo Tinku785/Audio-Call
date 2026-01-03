@@ -3,191 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My VoIP System</title>
+    <title>Calling System of Tinku</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding-top: 50px; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 20px; }
         
         .container { 
-            background: white; 
-            padding: 40px; 
-            margin: auto; 
-            max-width: 450px; 
-            border-radius: 15px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            background: white; padding: 30px; margin: auto; max-width: 450px; 
+            border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
         }
 
-        h1 { color: #333; margin-bottom: 30px; }
+        h1 { margin-bottom: 20px; font-size: 22px; color: #333; }
+        input { padding: 10px; width: 70%; border: 2px solid #ddd; border-radius: 5px; text-align: center; }
         
-        input { 
-            padding: 12px; font-size: 16px; width: 70%; 
-            border: 2px solid #ddd; border-radius: 8px; margin-bottom: 15px;
-            text-align: center; letter-spacing: 1px;
-        }
-
-        .btn { 
-            padding: 12px 25px; font-size: 16px; cursor: pointer; 
-            border: none; border-radius: 8px; color: white; 
-            font-weight: bold; transition: 0.3s; margin: 5px; width: 100%;
-        }
-
+        /* BUTTONS */
+        .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; width: 100%; margin: 5px 0; }
         .btn-join { background: #28a745; }
-        .btn-join:hover { background: #218838; }
+        .btn-whatsapp { background: #25D366; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .secondary-controls { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
+        .small-btn { background: #6c757d; font-size: 12px; padding: 8px; width: auto; flex: 1; }
 
-        .btn-create { background: #007bff; }
-        .btn-create:hover { background: #0056b3; }
-
-        .secondary-controls {
-            display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;
+        /* VISUALIZER CANVAS */
+        canvas { 
+            width: 100%; height: 60px; background: #222; 
+            border-radius: 5px; margin-top: 15px; display: none; /* Hidden until join */
         }
 
-        .small-btn {
-            background: #6c757d; font-size: 12px; padding: 5px 10px; width: auto;
+        /* CHAT BOX STYLES */
+        #chat-section { display: none; margin-top: 20px; text-align: left; }
+        #messages { 
+            height: 150px; overflow-y: auto; border: 1px solid #ddd; 
+            padding: 10px; background: #f9f9f9; border-radius: 5px; margin-bottom: 10px;
         }
+        .msg { margin: 5px 0; padding: 5px 8px; border-radius: 5px; font-size: 14px; }
+        .msg-me { background: #dcf8c6; text-align: right; margin-left: 20px; } /* WhatsApp Green */
+        .msg-remote { background: #fff; border: 1px solid #ddd; margin-right: 20px; }
 
-        #status { 
-            margin-top: 20px; color: #666; font-weight: 500; 
-            padding: 10px; background: #e9ecef; border-radius: 5px;
-        }
+        .chat-input-row { display: flex; gap: 5px; }
+        #msgInput { width: 100%; text-align: left; }
+        .btn-send { background: #007bff; width: auto; }
 
-        .live { color: #28a745 !important; border: 1px solid #28a745; background: #e8f5e9 !important;}
-        .error { color: #dc3545 !important; background: #f8d7da !important;}
-        .warning { color: #856404 !important; background: #fff3cd !important; border: 1px solid #ffeeba; }
+        #status { margin-top: 15px; color: #666; font-size: 13px; font-weight: bold; }
+        .live { color: #28a745 !important; }
+        .error { color: #dc3545 !important; }
 
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>🎙️ Secure Audio Call</h1>
+        <h1>🎙️ Pro Audio Station</h1>
         
-        <p>Enter a Room ID or Create a New One:</p>
-        <input type="text" id="roomId" placeholder="Enter Room ID here...">
-        
+        <input type="text" id="roomId" placeholder="Enter Room ID...">
         <div class="secondary-controls">
-            <button class="btn btn-create small-btn" onclick="generateRoom()">✨ Generate New ID</button>
+            <button class="btn btn-create small-btn" onclick="generateRoom()">✨ Generate ID</button>
             <button class="btn small-btn" onclick="copyRoomId()">📋 Copy ID</button>
         </div>
 
-        <button class="btn btn-join" onclick="joinRoom()">📞 Join Call Now</button>
+        <button class="btn btn-whatsapp" onclick="shareToWhatsApp()">
+            💬 Share on WhatsApp
+        </button>
+
+        <button class="btn btn-join" onclick="joinRoom()" id="joinBtn">📞 Join Call</button>
         
         <div id="status">Status: Idle</div>
-        
-        <br>
-        <audio id="remoteAudio" autoplay controls style="width: 100%; margin-top: 15px;"></audio>
+
+        <canvas id="visualizer"></canvas>
+
+        <div id="chat-section">
+            <div id="messages"></div>
+            <div class="chat-input-row">
+                <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="handleEnter(event)">
+                <button class="btn btn-send" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <audio id="remoteAudio" autoplay controls style="width: 100%; margin-top: 15px; display:none;"></audio>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    
     <script>
         const socket = io(); 
         let localStream;
         let peerConnection;
         
-        const servers = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' } 
-            ]
+        // --- 1. SETUP & UTILS ---
+        const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const r = urlParams.get('room');
+            if(r) document.getElementById('roomId').value = r;
         };
 
         function generateRoom() {
-            const randomId = Math.random().toString(36).substring(2, 9) + "-" + Math.random().toString(36).substring(2, 5);
-            document.getElementById('roomId').value = randomId;
-            document.getElementById('status').innerText = "Status: New Room ID Generated! Share it.";
+            document.getElementById('roomId').value = Math.random().toString(36).substring(2, 9);
         }
 
         function copyRoomId() {
-            const roomInput = document.getElementById('roomId');
-            roomInput.select();
-            document.execCommand("copy");
-            alert("Room ID copied! Send this to your friend.");
+            const el = document.getElementById('roomId'); el.select(); document.execCommand("copy");
+            alert("Copied!");
         }
 
+        function shareToWhatsApp() {
+            const id = document.getElementById('roomId').value;
+            if(!id) return alert("Generate ID first!");
+            const link = `${window.location.origin}${window.location.pathname}?room=${id}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent("Join my call: " + link)}`, '_blank');
+        }
+
+        // --- 2. JOINING LOGIC ---
         async function joinRoom() {
             const roomName = document.getElementById('roomId').value;
-            if (!roomName) {
-                alert("Please enter or generate a Room ID first!");
-                return;
-            }
-
-            const statusEl = document.getElementById('status');
-            statusEl.innerText = "Status: 🎤 Requesting Microphone...";
+            if (!roomName) return alert("Enter Room ID!");
+            
+            document.getElementById('joinBtn').disabled = true;
+            document.getElementById('status').innerText = "Status: Asking for Mic...";
 
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                statusEl.innerText = "Status: ⏳ Joining Server...";
+                
+                // Show hidden features
+                document.getElementById('visualizer').style.display = 'block';
+                document.getElementById('chat-section').style.display = 'block';
+                document.getElementById('remoteAudio').style.display = 'block';
+
+                // Start Visualizer
+                startVisualizer(localStream);
+
+                document.getElementById('status').innerText = "Status: Connecting...";
                 socket.emit('join-room', roomName, socket.id);
                 setupSocketListeners();
             } catch (error) {
                 console.error(error);
-                statusEl.innerText = "Status: ❌ Mic Permission Denied";
-                statusEl.classList.add("error");
+                document.getElementById('status').innerText = "Status: ❌ Permission Denied";
+                document.getElementById('status').classList.add("error");
             }
         }
 
+        // --- 3. CHAT LOGIC ---
+        function sendMessage() {
+            const input = document.getElementById('msgInput');
+            const msg = input.value;
+            const room = document.getElementById('roomId').value;
+            if(!msg) return;
+
+            // Show my own message
+            addMessageToUI("You", msg, "msg-me");
+            
+            // Send to server
+            socket.emit('send-message', { roomId: room, message: msg });
+            input.value = "";
+        }
+
+        function addMessageToUI(sender, text, className) {
+            const box = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = `msg ${className}`;
+            div.innerHTML = `<b>${sender}:</b> ${text}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight; // Auto-scroll to bottom
+        }
+
+        function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
+
+        // --- 4. VISUALIZER LOGIC (Hacker Style) ---
+        function startVisualizer(stream) {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const analyser = audioCtx.createAnalyser();
+            const source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.fftSize = 256;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            const canvas = document.getElementById("visualizer");
+            const ctx = canvas.getContext("2d");
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+                ctx.fillStyle = "#222"; // Background
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                const barWidth = (canvas.width / bufferLength) * 2.5;
+                let barHeight;
+                let x = 0;
+
+                for(let i = 0; i < bufferLength; i++) {
+                    barHeight = dataArray[i] / 2;
+                    // Green bars (Hacker color)
+                    ctx.fillStyle = `rgb(50, ${barHeight + 100}, 50)`;
+                    ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                    x += barWidth + 1;
+                }
+            }
+            draw();
+        }
+
+        // --- 5. WEBRTC & SOCKET LISTENERS ---
         function setupSocketListeners() {
-            socket.on('user-connected', (userId) => {
-                document.getElementById('status').innerText = "Status: 👤 User found! Connecting P2P...";
-                createPeerConnection(true); 
+            // Audio Signaling
+            socket.on('user-connected', () => {
+                document.getElementById('status').innerText = "Status: User Found! Linking...";
+                createPeerConnection(true);
+            });
+            
+            socket.on('signal', async (data) => {
+                if (!peerConnection) await createPeerConnection(false);
+                handleSignal(data.signal);
             });
 
-            socket.on('signal', async (data) => {
-                if (!peerConnection) {
-                    await createPeerConnection(false); 
-                }
-                handleSignal(data.signal);
+            // Chat Listener
+            socket.on('receive-message', (msg) => {
+                addMessageToUI("Friend", msg, "msg-remote");
             });
         }
 
         async function createPeerConnection(isInitiator) {
             peerConnection = new RTCPeerConnection(servers);
-
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-            // --- THE FIX: ROBUST AUDIO PLAYBACK LOGIC ---
             peerConnection.ontrack = (event) => {
-                console.log("Stream received!");
                 const remoteAudio = document.getElementById('remoteAudio');
                 remoteAudio.srcObject = event.streams[0];
-                
-                const statusEl = document.getElementById('status');
-                
-                // Attempt to play automatically
-                var playPromise = remoteAudio.play();
-
-                if (playPromise !== undefined) {
-                    playPromise.then(_ => {
-                        // Success: Audio is playing
-                        statusEl.innerText = "Status: 🟢 ONLINE - Audio Connected!";
-                        statusEl.className = ""; // Reset classes
-                        statusEl.classList.add("live");
+                remoteAudio.play()
+                    .then(() => {
+                        document.getElementById('status').innerText = "Status: 🟢 Connected!";
+                        document.getElementById('status').classList.add("live");
                     })
-                    .catch(error => {
-                        // Fail: Browser blocked it
-                        console.warn("Auto-play prevented. User interaction needed.");
-                        statusEl.innerText = "Status: ⚠️ Audio Blocked! Click the Red Button below.";
-                        statusEl.className = "";
-                        statusEl.classList.add("warning");
-                        
-                        // Create the "Click to Fix" button
-                        let btn = document.createElement("button");
-                        btn.innerText = "🔊 CLICK TO HEAR AUDIO";
-                        btn.style.backgroundColor = "#dc3545";
-                        btn.className = "btn";
-                        btn.onclick = () => {
-                            remoteAudio.play();
-                            btn.remove(); // Remove button after clicking
-                            statusEl.innerText = "Status: 🟢 ONLINE - Audio Connected!";
-                            statusEl.className = "live";
-                        };
-                        document.querySelector(".container").appendChild(btn);
+                    .catch(() => {
+                        document.getElementById('status').innerText = "Status: ⚠️ Click Play below!";
                     });
-                }
             };
 
             peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    sendSignal({ type: 'candidate', candidate: event.candidate });
-                }
+                if (event.candidate) sendSignal({ type: 'candidate', candidate: event.candidate });
             };
 
             if (isInitiator) {
