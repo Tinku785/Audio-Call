@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Private Chat and Call System</title>
+    <title>Pro VoIP System</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background-color: #f0f2f5; margin: 0; padding: 20px; }
         
@@ -19,7 +19,9 @@
             border-radius: 8px; margin-bottom: 10px; text-align: center; font-size: 16px;
         }
 
-        /* BUTTON STYLES */
+        /* NEW: NAME INPUT STYLE */
+        #nameInput { border-color: #007bff; background: #eef7ff; font-weight: bold; }
+
         .btn { 
             padding: 12px; font-size: 16px; cursor: pointer; border: none; 
             border-radius: 8px; color: white; font-weight: bold; width: 100%; margin: 5px 0; transition: 0.2s;
@@ -27,9 +29,7 @@
         .btn:hover { opacity: 0.9; }
         .btn-join { background: #28a745; }
         .btn-whatsapp { background: #25D366; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        
-        /* NEW: HANG UP BUTTON STYLE */
-        .btn-hangup { background: #dc3545; display: none; } /* Hidden by default */
+        .btn-hangup { background: #dc3545; display: none; } 
         .btn-hangup:hover { background: #c82333; }
 
         .secondary-controls { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
@@ -37,15 +37,17 @@
 
         canvas { width: 100%; height: 60px; background: #222; border-radius: 5px; margin-top: 15px; display: none; }
 
-        /* CHAT STYLES */
         #chat-section { display: none; margin-top: 20px; text-align: left; border-top: 1px solid #eee; padding-top: 20px; }
         #messages { 
             height: 150px; overflow-y: auto; border: 1px solid #ddd; 
             padding: 10px; background: #f9f9f9; border-radius: 5px; margin-bottom: 10px;
         }
         .msg { margin: 5px 0; padding: 6px 10px; border-radius: 5px; font-size: 14px; display: inline-block; clear: both;}
-        .msg-me { background: #dcf8c6; float: right; }
-        .msg-remote { background: #fff; border: 1px solid #ddd; float: left; }
+        
+        /* CHAT BUBBLE STYLES */
+        .msg-me { background: #dcf8c6; float: right; border-bottom-right-radius: 0; }
+        .msg-remote { background: #fff; border: 1px solid #ddd; float: left; border-bottom-left-radius: 0; }
+        .sender-name { font-size: 10px; font-weight: bold; color: #555; display: block; margin-bottom: 2px; }
         
         .chat-input-row { display: flex; gap: 5px; }
         #msgInput { width: 100%; margin: 0; text-align: left; }
@@ -54,13 +56,14 @@
         #status { margin-top: 15px; color: #666; font-size: 14px; font-weight: 500; }
         .live { color: #28a745 !important; }
         .error { color: #dc3545 !important; }
-
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>🎙️Pivate Call n Chat ,by Tinku</h1>
+        <h1>🎙️ Pro Audio Station</h1>
+        
+        <input type="text" id="nameInput" placeholder="Enter Your Name (Required)">
         
         <input type="text" id="roomId" placeholder="Enter Room ID...">
         
@@ -104,7 +107,7 @@
             const r = urlParams.get('room');
             if(r) {
                 document.getElementById('roomId').value = r;
-                document.getElementById('status').innerText = "Status: Room Auto-Filled! Click Join.";
+                document.getElementById('status').innerText = "Status: Room Auto-Filled! Enter Name & Join.";
             }
         };
 
@@ -128,14 +131,17 @@
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        // --- JOIN LOGIC ---
         async function joinRoom() {
             const roomName = document.getElementById('roomId').value;
+            const userName = document.getElementById('nameInput').value;
+
+            // VALIDATION: Name is mandatory now!
+            if (!userName) return alert("Please enter your Name first!");
             if (!roomName) return alert("Enter Room ID!");
             
-            // UI Updates: Hide Join, Show Hangup
             document.getElementById('joinBtn').style.display = 'none';
             document.getElementById('hangupBtn').style.display = 'block';
+            document.getElementById('nameInput').disabled = true; // Lock the name
             
             document.getElementById('status').innerText = "Status: Requesting Mic...";
 
@@ -148,7 +154,7 @@
                 
                 startVisualizer(localStream);
 
-                document.getElementById('status').innerText = "Status: Connecting to Server...";
+                document.getElementById('status').innerText = "Status: Connecting...";
                 socket.emit('join-room', roomName, socket.id);
                 setupSocketListeners();
             } catch (error) {
@@ -158,39 +164,41 @@
             }
         }
 
-        // --- NEW: HANG UP LOGIC ---
         function hangUp() {
-            // 1. Stop all microphone tracks (Turn off hardware light)
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-
-            // 2. Close the P2P connection
-            if (peerConnection) {
-                peerConnection.close();
-            }
-
-            // 3. Simple way to reset: Reload the page
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            if (peerConnection) peerConnection.close();
             alert("Call Ended.");
-            window.location.href = window.location.href.split('?')[0]; // Reload without room params
+            window.location.href = window.location.href.split('?')[0]; 
         }
 
-        // --- CHAT LOGIC ---
+        // --- UPDATED CHAT LOGIC ---
         function sendMessage() {
             const input = document.getElementById('msgInput');
             const msg = input.value;
             const room = document.getElementById('roomId').value;
+            const name = document.getElementById('nameInput').value; // Get the Name
+            
             if(!msg) return;
 
+            // Show "You" on my screen
             addMessageToUI("You", msg, "msg-me");
-            socket.emit('send-message', { roomId: room, message: msg });
+            
+            // Send Name + Message to Server
+            socket.emit('send-message', { roomId: room, message: msg, senderName: name });
             input.value = "";
         }
 
         function addMessageToUI(sender, text, className) {
             const box = document.getElementById('messages');
             const div = document.createElement('div');
-            div.innerHTML = `<div class="msg ${className}"><b>${sender}:</b> ${text}</div>`;
+            
+            // HTML for Name + Message
+            div.innerHTML = `
+                <div class="msg ${className}">
+                    <span class="sender-name">${sender}</span>
+                    ${text}
+                </div>`;
+            
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
         }
@@ -211,7 +219,7 @@
             const ctx = canvas.getContext("2d");
 
             function draw() {
-                if(!localStream.active) return; // Stop drawing if call ended
+                if(!localStream.active) return;
                 requestAnimationFrame(draw);
                 analyser.getByteFrequencyData(dataArray);
                 ctx.fillStyle = "#222"; 
@@ -241,9 +249,9 @@
                 handleSignal(data.signal);
             });
 
-            // THIS LISTENER RECEIVES THE CHAT
-            socket.on('receive-message', (msg) => {
-                addMessageToUI("Friend", msg, "msg-remote");
+            // UPDATED: Receive Message + Name
+            socket.on('receive-message', (data) => {
+                addMessageToUI(data.sender, data.message, "msg-remote");
             });
         }
 
